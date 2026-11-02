@@ -1,0 +1,160 @@
+COMMANDS TO INSTALL THE WHOLE FULL STACK
+1/. Create the project derictory: 
+--------------------------------
+cd ~/projects
+mkdir -p smart-documents
+cd smart-documents
+2/. Check docker 
+-----------------
+docker --version
+docker compose version
+docker ps
+3/. Create the project folders
+-------------------------------
+mkdir -p backend frontend docker/nginx
+4/. Generate laravel backend
+----------------------------
+docker run --rm \
+  -v "$PWD/backend:/app" \
+  -w /app \
+  composer:2 \
+  create-project laravel/laravel:^12.0 .
+5/. Install laravel API and Authentication
+------------------------------------------
+docker run --rm \
+  -v "$PWD/backend:/app" \
+  -w /app \
+  composer:2 \
+  require laravel/sanctum
+6/. Install api route 
+---------------------
+docker compose run --rm backend php artisan install:api
+7/. Create backend Dockerfile
+----------------------------- 
+cat > backend/Dockerfile <<'EOF'
+FROM php:8.3-cli
+RUN apt-get update && apt-get install -y git unzip libpq-dev libzip-dev libicu-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
+ && docker-php-ext-configure gd --with-freetype --with-jpeg \
+ && docker-php-ext-install pdo_pgsql intl zip bcmath gd \
+ && rm -rf /var/lib/apt/lists/*
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+WORKDIR /var/www/html
+EOF
+8/. Frontend Dockerfile
+-----------------------
+cat > frontend/Dockerfile <<'EOF'
+FROM node:24-alpine
+WORKDIR /app
+EOF
+9/. Create docker-compose.yml
+-----------------------------
+cat > docker-compose.yml <<'EOF'
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: smart-documents-api
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+      - laravel_vendor:/var/www/html/vendor
+    ports:
+      - "8000:8000"
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: smart_documents
+      DB_USERNAME: smart_user
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -lc "composer install &&
+      (grep -q '^APP_KEY=$' .env && php artisan key:generate || true) &&
+      php artisan migrate --force &&
+      php artisan serve --host=0.0.0.0 --port=8000"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: smart-documents-frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8000/api
+    command: sh -lc "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: smart-documents-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: smart_documents
+      POSTGRES_USER: smart_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smart_user -d smart_documents"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  adminer:
+    image: adminer:latest
+    container_name: smart-documents-adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+  laravel_vendor:
+  frontend_node_modules:
+EOF
+10/. Generate React & Tailwindcss Design 
+-------------------------------------------
+docker run --rm \
+  -v "$PWD/frontend:/app" \
+  -w /app \
+  node:24-alpine \
+  sh -lc "npm create vite@latest . -- --template react"
+11/. Install frontend packages 
+-----------------------------
+docker run --rm \
+  -v "$PWD/frontend:/app" \
+  -w /app \
+  node:24-alpine \
+  sh -lc "npm install && npm install axios react-router-dom lucide-react tailwindcss @tailwindcss/vite"
+12/. To connect API backend to frontend 
+----------------------------------------
+cat > frontend/.env <<'EOF'
+VITE_API_URL=http://localhost:8000/api
+EOF
+13/. To save file in Ubuntu wsl 
+----------------------------------
+cd ~/projects/smart-docs
+sudo chown -R $USER:$USER frontend 
+14/. option 2
+-----------------------------------
+cd ~/projects/smart-docs
+sudo chown -R lenovo:lenovo backend frontend
+15/. Adminer login 
+----------------------
+System	PostgreSQL
+Server	postgres
+Username	smart_user*
+Password	d22a7ceba8813f5b8bc3e8f0c51ff031
+Database	smart_documents*
