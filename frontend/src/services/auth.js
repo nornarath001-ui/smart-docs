@@ -1,31 +1,65 @@
 
 import api from "./api";
 
-export async function login(email, password) {
+function saveSession(token, user, remember) {
+  localStorage.removeItem("auth_token");
+  localStorage.removeItem("auth_user");
+  sessionStorage.removeItem("auth_token");
+  sessionStorage.removeItem("auth_user");
+
+  const storage = remember ? localStorage : sessionStorage;
+  storage.setItem("auth_token", token);
+  storage.setItem("auth_user", JSON.stringify(user));
+}
+
+export async function login(email, password, remember = false) {
   const { data } = await api.post("/auth/login", { email, password });
-  localStorage.setItem("auth_token", data.token);
-  localStorage.setItem("auth_user", JSON.stringify(data.user));
+  saveSession(data.token, data.user, remember);
   return data.user;
+}
+
+export async function register(name, email, password, password_confirmation) {
+  const { data } = await api.post("/auth/register", {
+    name, email, password, password_confirmation
+  });
+  return data;
 }
 
 export async function fetchMe() {
   const { data } = await api.get("/auth/me");
-  localStorage.setItem("auth_user", JSON.stringify(data.user));
+  const storage = localStorage.getItem("auth_token")
+    ? localStorage
+    : sessionStorage;
+  storage.setItem("auth_user", JSON.stringify(data.user));
   return data.user;
+}
+
+export async function forgotPassword(email) {
+  const { data } = await api.post("/auth/forgot-password", { email });
+  return data;
+}
+
+export async function resetPassword(payload) {
+  const { data } = await api.post("/auth/reset-password", payload);
+  return data;
 }
 
 export async function logout() {
   try {
     await api.post("/auth/logout");
   } finally {
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_user");
+    ["auth_token", "auth_user"].forEach((key) => {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    });
   }
 }
 
 export function getCurrentUser() {
   try {
-    return JSON.parse(localStorage.getItem("auth_user") || "null");
+    const value = localStorage.getItem("auth_user") ||
+      sessionStorage.getItem("auth_user");
+    return value ? JSON.parse(value) : null;
   } catch {
     return null;
   }

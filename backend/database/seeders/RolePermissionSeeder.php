@@ -1,4 +1,6 @@
+
 <?php
+
 namespace Database\Seeders;
 
 use App\Models\User;
@@ -16,32 +18,69 @@ class RolePermissionSeeder extends Seeder
 
         $permissions = [
             'dashboard.view',
-            'users.view', 'users.create', 'users.update', 'users.delete',
-            'roles.view', 'roles.manage',
-            'documents.view', 'documents.create', 'documents.update', 'documents.delete', 'documents.approve',
-            'categories.view', 'categories.manage',
-            'activity.view', 'settings.manage',
+            'users.view',
+            'users.create',
+            'users.update',
+            'users.delete',
+            'roles.view',
+            'roles.manage',
+            'documents.view',
+            'documents.create',
+            'documents.update',
+            'documents.delete',
+            'documents.approve',
+            'categories.view',
+            'categories.manage',
+            'activity.view',
+            'settings.manage',
             'ai.use',
         ];
 
+        // Create all permissions.
         foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
+            Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => 'web',
+            ]);
         }
 
-        $admin = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
-        $manager = Role::firstOrCreate(['name' => 'Manager', 'guard_name' => 'web']);
-        $staff = Role::firstOrCreate(['name' => 'Staff', 'guard_name' => 'web']);
-
-        $admin->syncPermissions($permissions);
-
-        $manager->syncPermissions([
-            'dashboard.view', 'users.view',
-            'documents.view', 'documents.create', 'documents.update', 'documents.approve',
-            'categories.view', 'ai.use', 'activity.view',
+        // Create roles.
+        $admin = Role::firstOrCreate([
+            'name' => 'Admin',
+            'guard_name' => 'web',
         ]);
 
+        $manager = Role::firstOrCreate([
+            'name' => 'Manager',
+            'guard_name' => 'web',
+        ]);
+
+        $staff = Role::firstOrCreate([
+            'name' => 'Staff',
+            'guard_name' => 'web',
+        ]);
+
+        // Admin: all permissions.
+        $admin->syncPermissions(Permission::where('guard_name', 'web')->get());
+
+        // Manager: manage operational data, but not system settings or roles.
+        $manager->syncPermissions([
+            'dashboard.view',
+            'users.view',
+            'documents.view',
+            'documents.create',
+            'documents.update',
+            'documents.approve',
+            'categories.view',
+            'ai.use',
+            'activity.view',
+        ]);
+
+        // Staff: basic document access.
         $staff->syncPermissions([
-            'dashboard.view', 'documents.view', 'documents.create',
+            'dashboard.view',
+            'documents.view',
+            'documents.create',
             'ai.use',
         ]);
 
@@ -59,7 +98,7 @@ class RolePermissionSeeder extends Seeder
                 ]
             );
 
-            $user->syncRoles(['Admin']);
+            $user->syncRoles([$admin]);
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();

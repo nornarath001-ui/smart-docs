@@ -158,3 +158,6 @@ Server	postgres
 Username	smart_user*
 Password	d22a7ceba8813f5b8bc3e8f0c51ff031
 Database	smart_documents*
+
+
+// Hello world 

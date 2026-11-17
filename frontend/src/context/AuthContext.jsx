@@ -6,29 +6,42 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(getCurrentUser);
-  const [loading, setLoading] = useState(!!localStorage.getItem("auth_token"));
+  const [loading, setLoading] = useState(
+    !!(localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token"))
+  );
 
   useEffect(() => {
-    if (!localStorage.getItem("auth_token")) {
+    const token = localStorage.getItem("auth_token") ||
+      sessionStorage.getItem("auth_token");
+
+    if (!token) {
       setLoading(false);
       return;
     }
-    fetchMe().then(setUser).catch(() => setUser(null)).finally(() => setLoading(false));
+
+    fetchMe()
+      .then(setUser)
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
   }, []);
 
-  async function signIn(email, password) {
-    const result = await login(email, password);
+  async function signIn(email, password, remember) {
+    const result = await login(email, password, remember);
     setUser(result);
     return result;
   }
 
-  async function signOut() {
+async function signOut() {
+  try {
     await logout();
+  } finally {
     setUser(null);
+    window.location.assign("/login");
   }
+}
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut, setUser }}>
       {children}
     </AuthContext.Provider>
   );

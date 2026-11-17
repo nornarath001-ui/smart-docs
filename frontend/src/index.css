@@ -20,6 +20,23 @@ body {
 button, input {
   font: inherit;
 }
+
+
+@import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;500;600;700&family=Noto+Sans+Khmer:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-khmer: "Kantumruy Pro", "Noto Sans Khmer", sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: "Kantumruy Pro", "Noto Sans Khmer", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
 /* :root {
   --text: #6b6375;
   --text-h: #08060d;
